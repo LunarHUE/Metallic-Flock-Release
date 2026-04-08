@@ -38,7 +38,7 @@ in {
       path = with pkgs; [ procps iptables k3s opentofu ];
 
       serviceConfig = {
-        ExecStart = "${cfg.package}/bin/metallic-flock --mode ${cfg.mode}";
+        ExecStart = "${cfg.package}/bin/metallic-flock ${cfg.mode}";
         DynamicUser = false;
         User = "root";
         Group = "root";
