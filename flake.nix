@@ -4,7 +4,7 @@
       "https://metallic.cachix.org"
     ];
     extra-trusted-public-keys = [
-      "metallic.cachix.org-1:metallic.cachix.org-1:ETkGy1z4wMK9/UBOJ2nxliDATYvKhV5DAoRYeFA8beY="
+      "metallic.cachix.org-1:ETkGy1z4wMK9/UBOJ2nxliDATYvKhV5DAoRYeFA8beY="
     ];
   };
 
