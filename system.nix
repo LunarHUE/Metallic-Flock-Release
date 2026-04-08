@@ -1,3 +1,4 @@
+# We wrap the standard module signature to inject the flake's `self`
 { self }: 
 
 { config, lib, pkgs, ... }:
@@ -10,6 +11,7 @@ in {
 
     package = mkOption {
       type = types.package;
+      # Grab the package we built in package.nix dynamically based on the target system
       default = self.packages.${pkgs.system}.metallic-flock;
       description = "The Compute Flock package to use.";
     };
