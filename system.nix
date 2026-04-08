@@ -31,7 +31,7 @@ in {
 
     systemd.services.metallic-flock = {
       description = "Compute Flock Agent";
-      after = [ "network-online.target" ];
+      after = [ "network-online.target" "k3s.service" ];
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
