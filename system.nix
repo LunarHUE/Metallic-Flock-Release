@@ -37,7 +37,7 @@ in {
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
-      path = with pkgs; [ procps iptables k3s opentofu git ];
+      path = with pkgs; [ procps iptables k3s opentofu git nix ];
 
       serviceConfig = {
         ExecStart = "${cfg.package}/bin/metallic-flock ${cfg.mode}";
