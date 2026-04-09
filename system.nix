@@ -24,6 +24,8 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    environment.systemPackages = [ cfg.package ];
+
     networking.firewall = {
       allowedTCPPorts = [ 6443 10250 9000 9418 ];
       allowedUDPPorts = [ 8472 5353 ];
