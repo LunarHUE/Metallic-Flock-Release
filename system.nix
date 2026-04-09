@@ -39,6 +39,10 @@ in {
 
       path = with pkgs; [ procps iptables k3s opentofu git nix ];
 
+      environment = {
+        NIX_PATH = "nixpkgs=${pkgs.path}";
+      };
+
       serviceConfig = {
         ExecStart = "${cfg.package}/bin/metallic-flock ${cfg.mode}";
         DynamicUser = false;
