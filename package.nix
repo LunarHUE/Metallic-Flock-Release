@@ -5,7 +5,7 @@ stdenv.mkDerivation {
 
   src = fetchurl {
     url = "https://github.com/lunarhue/metallic-flock-release/releases/download/v0.0.7/metallic-flock-linux-amd64";
-    hash = "sha256-ixMwoox2Vks7S/wztFUCIV95w7sohObetIvBaSxqOu4=";
+    hash = "sha256-zt9iflt1b/r+6SW4/kk4r6vfJkTs1/JbeRLSSQJEVQs=";
   };
 
   dontUnpack = true;
