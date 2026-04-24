@@ -21,6 +21,17 @@ in {
       default = "agent";
       description = "Mode in which to run Compute Flock (agent/controller).";
     };
+
+    liveMode = mkOption {
+      type = types.bool;
+      default = false;
+      description = ''
+        Set true on the bare-metal install ISO. Drops the k3s.service
+        ordering dependency (no k3s on the live USB) and exports
+        METALLIC_FLOCK_LIVE_MODE=1 so the agent takes the install-to-disk
+        code path instead of the in-RAM reconcile path.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -33,7 +44,8 @@ in {
 
     systemd.services.metallic-flock = {
       description = "Compute Flock Agent";
-      after = [ "network-online.target" "k3s.service" ];
+      after = [ "network-online.target" ]
+        ++ lib.optional (!cfg.liveMode) "k3s.service";
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
@@ -41,6 +53,8 @@ in {
 
       environment = {
         NIX_PATH = "nixpkgs=${pkgs.path}";
+      } // lib.optionalAttrs cfg.liveMode {
+        METALLIC_FLOCK_LIVE_MODE = "1";
       };
 
       serviceConfig = {
