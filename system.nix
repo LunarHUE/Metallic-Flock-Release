@@ -49,7 +49,7 @@ in {
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
-      path = with pkgs; [ procps iptables k3s opentofu git openssh nix nixos-option nixos-rebuild ];
+      path = with pkgs; [ procps iptables k3s opentofu git openssh nix nixos-option nixos-rebuild nixos-install-tools ];
 
       environment = {
         NIX_PATH = "nixpkgs=${pkgs.path}";
