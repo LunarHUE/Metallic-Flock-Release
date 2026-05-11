@@ -48,7 +48,7 @@ in {
         nix nixos-option nixos-rebuild nixos-install-tools
         # nixos-install needs these system tools during "setting up /etc" and
         # "installing the boot loader" phases.
-        util-linux coreutils gnugrep gnused gawk findutils diffutils
+        util-linux coreutils gnugrep gnused gawk findutils diffutils ethtool
         e2fsprogs dosfstools parted systemd
       ];
 
