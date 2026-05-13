@@ -26,6 +26,16 @@ in {
           "controller"    — controller node
       '';
     };
+
+    releaseRef = mkOption {
+      type = types.str;
+      default = "";
+      description = ''
+        Git ref in lunarhue/metallic-flock-release to use during install.
+        When non-empty, the agent overrides the metallic-flock flake input
+        before nixos-install. Empty = use cluster repo's flake.lock as-is.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -54,6 +64,8 @@ in {
 
       environment = {
         NIX_PATH = "nixpkgs=${pkgs.path}";
+      } // lib.optionalAttrs (cfg.releaseRef != "") {
+        METALLIC_RELEASE_REF = cfg.releaseRef;
       };
 
       serviceConfig = {
