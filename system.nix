@@ -64,6 +64,7 @@ in {
 
       environment = {
         NIX_PATH = "nixpkgs=${pkgs.path}";
+        PCIDB_PATH = "${pkgs.hwdata}/share/hwdata/pci.ids";
       } // lib.optionalAttrs (cfg.releaseRef != "") {
         METALLIC_RELEASE_REF = cfg.releaseRef;
       };
