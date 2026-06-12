@@ -49,12 +49,14 @@ in {
     systemd.services.metallic-flock = {
       description = "Compute Flock Agent";
       after = [ "network-online.target" ]
+        ++ lib.optional (cfg.mode == "controller") "postgresql.service"
         ++ lib.optional (cfg.mode != "agent iso") "k3s.service";
+      requires = lib.optional (cfg.mode == "controller") "postgresql.service";
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
       path = with pkgs; [
-        procps iptables k3s opentofu git openssh
+        procps iptables k3s git openssh
         nix nixos-option nixos-rebuild nixos-install-tools
         # nixos-install needs these system tools during "setting up /etc" and
         # "installing the boot loader" phases.
