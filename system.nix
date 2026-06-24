@@ -36,6 +36,20 @@ in {
         before nixos-install. Empty = use cluster repo's flake.lock as-is.
       '';
     };
+
+    profile = mkOption {
+      type = types.enum [ "solo" "production" ];
+      default = "production";
+      description = ''
+        Operating profile, passed to metallic-flock via METALLIC_FLOCK_PROFILE.
+          "solo"        — single-node convenience profile (listens on :80)
+          "production"  — multi-node profile (listens on :8080)
+        On installed nodes this is set by the generated cluster config
+        (services.metallic-flock.profile in node-default.nix), so the process
+        resolves profile=...source=env. source=default would mean this thread
+        broke.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -66,6 +80,11 @@ in {
 
       environment = {
         NIX_PATH = "nixpkgs=${pkgs.path}";
+        # Threaded UNCONDITIONALLY (never under optionalAttrs): every installed
+        # node must always carry its profile so the process resolves
+        # source=env. Gating this would reintroduce source=default and break
+        # the metallic.local path. See config.resolveProfile.
+        METALLIC_FLOCK_PROFILE = cfg.profile;
       } // lib.optionalAttrs (cfg.releaseRef != "") {
         METALLIC_RELEASE_REF = cfg.releaseRef;
       };
