@@ -69,7 +69,9 @@ in {
       description = "Compute Flock Agent";
       after = [ "network-online.target" ]
         ++ lib.optional (cfg.mode == "controller") "postgresql.service"
-        ++ lib.optional (cfg.mode != "agent iso") "k3s.service";
+        # Live installers ("agent iso" / "controller iso") run no k3s, so they
+        # must not order after a k3s.service that will never start.
+        ++ lib.optional (!(lib.hasSuffix " iso" cfg.mode)) "k3s.service";
       requires = lib.optional (cfg.mode == "controller") "postgresql.service";
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
