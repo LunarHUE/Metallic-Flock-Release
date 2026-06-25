@@ -79,6 +79,8 @@ in {
       path = with pkgs; [
         procps iptables k3s git openssh
         nix nixos-option nixos-rebuild nixos-install-tools
+
+        disko jq
         # nixos-install needs these system tools during "setting up /etc" and
         # "installing the boot loader" phases.
         util-linux coreutils gnugrep gnused gawk findutils diffutils ethtool
