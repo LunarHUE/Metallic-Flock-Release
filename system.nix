@@ -56,7 +56,12 @@ in {
     environment.systemPackages = [ cfg.package ];
 
     networking.firewall = {
-      allowedTCPPorts = [ 6443 10250 9000 22 ];
+      # Port 80 is the controller dashboard (1c). Gated on cfg.mode ==
+      # "controller" — NOT profile/solo (adopted solo agents must not open it).
+      # In HA every server-role node resolves mode=controller and would open 80;
+      # acceptable for Phase 1 (solo has one server), revisited in phase 6.
+      allowedTCPPorts = [ 6443 10250 9000 22 ]
+        ++ lib.optional (cfg.mode == "controller") 80;
       allowedUDPPorts = [ 8472 5353 ];
     };
 
