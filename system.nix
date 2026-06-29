@@ -76,16 +76,16 @@ in {
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
-      path = with pkgs; [
-        procps iptables k3s git openssh
-        nix nixos-option nixos-rebuild nixos-install-tools
-
-        disko jq
-        # nixos-install needs these system tools during "setting up /etc" and
-        # "installing the boot loader" phases.
-        util-linux coreutils gnugrep gnused gawk findutils diffutils ethtool
-        e2fsprogs dosfstools parted systemd
-      ];
+      # Install-critical tools (git, nix, nixos-install-tools, disko, util-linux,
+      # …) are factored into ./nix/install-tools.nix and SHARED with the
+      # controller ISO's autologin installer shell (controller-image.nix) so the
+      # two install paths can never drift. nixos-install needs the base utilities
+      # during its "setting up /etc" and "installing the boot loader" phases.
+      # Runtime-only tools below are appended here — the installer never execs
+      # them, so they stay out of install-tools.nix (and off the controller ISO).
+      path = (import ./nix/install-tools.nix pkgs) ++ (with pkgs; [
+        procps iptables k3s openssh nixos-option nixos-rebuild
+      ]);
 
       environment = {
         NIX_PATH = "nixpkgs=${pkgs.path}";
