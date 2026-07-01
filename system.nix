@@ -76,6 +76,12 @@ in {
       wants = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
 
+      # Never give up restarting the controller. With Restart=always but the default
+      # start-limit (5 starts / 10s), systemd would mark the unit failed and stop after
+      # a few fast crashes — leaving the node with no controller and no self-repair.
+      # startLimitIntervalSec=0 disables that limit so it keeps retrying indefinitely.
+      startLimitIntervalSec = 0;
+
       # Install-critical tools (git, nix, nixos-install-tools, disko, util-linux,
       # …) are factored into ./nix/install-tools.nix and SHARED with the
       # controller ISO's autologin installer shell (controller-image.nix) so the
