@@ -109,5 +109,48 @@ in {
         CacheDirectory = "metallic-flock";
       };
     };
+
+    # GC roots for the baked offline flake-input sources. The controller self-install
+    # copies the cluster input SOURCES into this node's store and records them in
+    # /etc/metallic/offline-inputs (node/install persistOfflineSources). Those sources
+    # are flake INPUTS, not part of any system closure, so `nix-collect-garbage` would
+    # delete them and break offline reconcile. This oneshot (re)creates one GC root per
+    # manifest entry on every boot — idempotent, and a no-op when the manifest is absent
+    # (adopted agents, or a controller from a non-offline ISO), so it is safe on every
+    # node. A failed root is surfaced as a failed unit (diagnosable), not swallowed.
+    systemd.services.metallic-offline-gcroots = {
+      description = "Create/repair GC roots for baked offline flake input sources";
+      wantedBy = [ "multi-user.target" ];
+      after = [ "local-fs.target" "nix-daemon.socket" ];
+      before = [ "nix-gc.service" ];
+      path = with pkgs; [ nix coreutils ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+      script = ''
+        manifest=/etc/metallic/offline-inputs
+        if [ ! -f "$manifest" ]; then
+          echo "metallic-offline-gcroots: no manifest at $manifest; nothing to root"
+          exit 0
+        fi
+        rootdir=/nix/var/nix/gcroots/metallic-offline-inputs
+        mkdir -p "$rootdir"
+        rc=0
+        while IFS='=' read -r name path; do
+          case "$name" in ""|"#"*) continue ;; esac
+          if [ -e "$path" ]; then
+            if nix-store --add-root "$rootdir/$name" --realise "$path" >/dev/null; then
+              echo "rooted $name -> $path"
+            else
+              echo "ERROR: failed to root $name -> $path" >&2; rc=1
+            fi
+          else
+            echo "ERROR: offline source $name missing from store: $path" >&2; rc=1
+          fi
+        done < "$manifest"
+        exit $rc
+      '';
+    };
   };
 }
