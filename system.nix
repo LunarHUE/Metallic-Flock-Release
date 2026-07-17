@@ -56,12 +56,16 @@ in {
     environment.systemPackages = [ cfg.package ];
 
     networking.firewall = {
-      # Port 80 is the controller dashboard (1c). Gated on cfg.mode ==
-      # "controller" — NOT profile/solo (adopted solo agents must not open it).
-      # In HA every server-role node resolves mode=controller and would open 80;
-      # acceptable for Phase 1 (solo has one server), revisited in phase 6.
+      # Ports 80 (plaintext) and 443 (HTTPS, 3c-6) are the controller dashboard
+      # (1c/3c). Both gated on cfg.mode == "controller" — NOT profile/solo
+      # (adopted solo agents must not open them). In HA every server-role node
+      # resolves mode=controller and would open 80/443; acceptable for Phase 1
+      # (solo has one server), revisited in phase 6. k3s runs with
+      # --disable=traefik --disable=servicelb (see modules/k3s.nix +
+      # nix/k3s_airgap_test.go), so nothing else claims :80/:443 via the silent
+      # servicelb hostPort/PREROUTING DNAT — the controller binds them directly.
       allowedTCPPorts = [ 6443 10250 9000 22 ]
-        ++ lib.optional (cfg.mode == "controller") 80;
+        ++ lib.optionals (cfg.mode == "controller") [ 80 443 ];
       allowedUDPPorts = [ 8472 5353 ];
     };
 
