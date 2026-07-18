@@ -94,7 +94,7 @@ in {
       # Runtime-only tools below are appended here — the installer never execs
       # them, so they stay out of install-tools.nix (and off the controller ISO).
       path = (import ./nix/install-tools.nix pkgs) ++ (with pkgs; [
-        procps iptables k3s openssh nixos-option nixos-rebuild
+        procps iptables k3s openssh nixos-option nixos-rebuild dmidecode
       ]);
 
       environment = {
