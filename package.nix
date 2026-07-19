@@ -1,11 +1,11 @@
 { stdenv, fetchurl, lib }:
 stdenv.mkDerivation {
   pname = "metallic-flock";
-  version = "0.0.438";
+  version = "0.0.439";
 
   src = fetchurl {
-    url = "https://github.com/lunarhue/metallic-flock-release/releases/download/v0.0.438/metallic-flock-linux-amd64";
-    hash = "sha256-roC5s6jaw6yMLug1MfkO+pkBJpQIFyQ3PDSoNLuvrx0=";
+    url = "https://github.com/lunarhue/metallic-flock-release/releases/download/v0.0.439/metallic-flock-linux-amd64";
+    hash = "sha256-rv3WvCLeBdYiN7i7p/mFZhkAmCoGP5mvDDbN6WReFX4=";
   };
 
   dontUnpack = true;
