@@ -125,6 +125,19 @@ in {
         Group = "root";
         Restart = "always";
         RestartSec = "5s";
+        # Backstop for the stop path, NOT the fix. The process bounds its own
+        # shutdown legs in-process (bounded gRPC drain + joined HTTP drain); this
+        # only keeps a future unbounded wait from costing systemd's 90s default
+        # and a SIGKILL — which is what every controller stop cost until
+        # 2026-07-25, on every update, since a self-apply restarts this unit.
+        #
+        # 45s is derived, not guessed: the errgroup's legs stop CONCURRENTLY, so
+        # the budget is a max, not a sum — the longest legitimate leg is the 30s
+        # terminal-generation write (adoption/reconcile.go completeDetached),
+        # which must survive a Postgres that is itself restarting in the same
+        # switch. 30s + slack, well under the 90s default. Applies to both modes
+        # deliberately: the agent's reconcile stop is bounded the same way.
+        TimeoutStopSec = "45s";
         StateDirectory = "metallic-flock";
         CacheDirectory = "metallic-flock";
       };
