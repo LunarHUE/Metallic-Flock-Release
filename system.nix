@@ -167,15 +167,6 @@ in {
         StateDirectory = "metallic-flock";
         CacheDirectory = "metallic-flock";
 
-        # SIGHUP to the main pid triggers the in-process listener handoff.
-        #
-        # coreutils, NOT "${cfg.package}/bin/...", and this is load-bearing: any
-        # cfg.package interpolation in the unit body re-embeds a store path that
-        # moves on every version bump, which changes the unit, which forces a
-        # restart instead of a reload — silently disabling the entire path this
-        # block exists to enable. coreutils does not move when metallic-flock
-        # does.
-        ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
       }
       # Type=notify is what lets the fd handoff survive. Under the default
       # Type=simple systemd tracks the ExecStart pid as MAINPID; after a handoff
@@ -198,6 +189,23 @@ in {
       // lib.optionalAttrs (!(lib.hasSuffix " iso" cfg.mode)) {
         Type = "notify";
         NotifyAccess = "all";
+
+        # SIGHUP to the main pid triggers the in-process listener handoff.
+        #
+        # coreutils, NOT "${cfg.package}/bin/...", and this is load-bearing: any
+        # cfg.package interpolation in the unit body re-embeds a store path that
+        # moves on every version bump, which changes the unit, which forces a
+        # restart instead of a reload — silently disabling the entire path this
+        # block exists to enable. coreutils does not move when metallic-flock
+        # does.
+        #
+        # Inside the ISO gate with Type/NotifyAccess: the ISO binary installs no
+        # HUP handler, so an ExecReload there would let a manual
+        # `systemctl reload` kill the process on HUP's default disposition
+        # (Restart=always recovers, but a reload verb that kills is worse than
+        # no reload verb). Without ExecReload, reload on the ISO is simply
+        # refused.
+        ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
       };
 
       # A package-only bump must RELOAD (fd handoff, no downtime) rather than
