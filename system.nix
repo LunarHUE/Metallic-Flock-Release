@@ -119,7 +119,21 @@ in {
       };
 
       serviceConfig = {
-        ExecStart = "${cfg.package}/bin/metallic-flock ${cfg.mode}";
+        # DELIBERATELY the systemPackages symlink, NOT "${cfg.package}/bin/...".
+        #
+        # Two things depend on it. (1) The unit body must not change on a
+        # metallic-flock-only bump, or reloadTriggers below can never produce a
+        # reload — an ExecStart carrying the store path changes on every version
+        # and forces a restart, silently killing the whole fd-handoff path.
+        # (2) tableflip re-execs os.Args[0] and offers no way to override it, so
+        # with a store path the successor would re-exec the OLD binary and the
+        # upgrade would be a no-op. LookPath passes a slash-containing path
+        # through verbatim, so the symlink is resolved at exec time — and
+        # activation (where /run/current-system flips) strictly precedes the
+        # reload step, so by the time SIGHUP lands this already points at the new
+        # binary. Valid only because environment.systemPackages = [ cfg.package ]
+        # above guarantees the symlink exists and tracks cfg.package.
+        ExecStart = "/run/current-system/sw/bin/metallic-flock ${cfg.mode}";
         DynamicUser = false;
         User = "root";
         Group = "root";
@@ -131,6 +145,18 @@ in {
         # and a SIGKILL — which is what every controller stop cost until
         # 2026-07-25, on every update, since a self-apply restarts this unit.
         #
+        # > **Stale (corrected 2026-07-31)** — the "bounds its own shutdown legs
+        # > in-process" claim above was TRUE OF THE DESIGN but FALSE OF THE
+        # > RUNTIME until this date. The binary installed no signal handler at
+        # > all (cmd/root.go called rootCmd.Execute(), never ExecuteContext), so
+        # > SIGTERM hit Go's default disposition and killed the process
+        # > instantly: the errgroup teardown, the bounded gRPC drain and the 30s
+        # > detached terminal-generation write never ran, and this 45s budget
+        # > bounded a drain that could not happen. The SIGTERM/SIGINT handler
+        # > added in the same change as the reload wiring below makes the claim
+        # > true for the first time. Kept rather than rewritten per docs/spec.md
+        # > §8.4.
+        #
         # 45s is derived, not guessed: the errgroup's legs stop CONCURRENTLY, so
         # the budget is a max, not a sum — the longest legitimate leg is the 30s
         # terminal-generation write (adoption/reconcile.go completeDetached),
@@ -140,7 +166,63 @@ in {
         TimeoutStopSec = "45s";
         StateDirectory = "metallic-flock";
         CacheDirectory = "metallic-flock";
+
+        # SIGHUP to the main pid triggers the in-process listener handoff.
+        #
+        # coreutils, NOT "${cfg.package}/bin/...", and this is load-bearing: any
+        # cfg.package interpolation in the unit body re-embeds a store path that
+        # moves on every version bump, which changes the unit, which forces a
+        # restart instead of a reload — silently disabling the entire path this
+        # block exists to enable. coreutils does not move when metallic-flock
+        # does.
+        ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
+      }
+      # Type=notify is what lets the fd handoff survive. Under the default
+      # Type=simple systemd tracks the ExecStart pid as MAINPID; after a handoff
+      # that process exits, systemd sees the main process die and — with
+      # Restart=always and the default KillMode=control-group — kills the whole
+      # cgroup including the brand-new successor, then restarts the unit. Worse
+      # than no handoff at all. The successor instead sends MAINPID+READY=1 over
+      # $NOTIFY_SOCKET, which re-points systemd at it before the old process
+      # exits. NotifyAccess=all is required because that datagram comes from a
+      # process that is not yet MAINPID (safe here: the unit runs as root).
+      #
+      # ISO-GATED. The live ISO runs this same unit with mode "agent iso" and
+      # deliberately grows no upgrade machinery. It does send READY=1 anyway
+      # (cmd/agent/iso.go), so this gate is belt-and-braces rather than the sole
+      # protection — but without it, one edit that dropped that call would leave
+      # the ISO hanging until TimeoutStartSec and then restart-looping forever
+      # on startLimitIntervalSec=0. Only "agent iso" can reach this: the
+      # controller ISO force-disables the service entirely and runs its
+      # installer from a login shell, so "controller iso" is never a cfg.mode.
+      // lib.optionalAttrs (!(lib.hasSuffix " iso" cfg.mode)) {
+        Type = "notify";
+        NotifyAccess = "all";
       };
+
+      # A package-only bump must RELOAD (fd handoff, no downtime) rather than
+      # stop/start. switch-to-configuration reloads when the only unit-file
+      # delta is X-Reload-Triggers or ExecReload, and restarts on any other
+      # delta — restart winning when a unit lands on both lists. Combined with
+      # the store-path-free ExecStart above, that gives exactly the split we
+      # need:
+      #
+      #   package bump only  → X-Reload-Triggers differs → reload → fd handoff
+      #   env / mode change  → [Service] body differs    → restart (fresh env)
+      #   both               → body differs              → restart
+      #
+      # The restart case is the important one to preserve. reloadIfChanged was
+      # REJECTED precisely because it converts any unit change into a reload,
+      # including a changed environment= block — and a re-exec'd process
+      # inherits the OLD environ, so METALLIC_FLOCK_PROFILE and
+      # METALLIC_UPDATE_CHANNEL would silently go stale and break the
+      # source=env invariant. Env changes must restart.
+      reloadTriggers = lib.optional (!(lib.hasSuffix " iso" cfg.mode)) cfg.package;
+
+      # Turns the restart case from stop → activate → start into a single
+      # systemctl restart, removing the activation-window gap. This is the
+      # baseline for every path that still restarts.
+      stopIfChanged = false;
     };
 
     # GC roots for the baked offline flake-input sources. The controller self-install
