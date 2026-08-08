@@ -23,6 +23,30 @@
 # to the controller live ISO — the price of the shared-toolset invariant — with
 # the measurement recorded in the phase-6 status evidence.
 #
+# gptfdisk + xfsprogs complete that same claim path, and are here for the same
+# reasons — agent-execed at claim time, not installer-execed today, and carried
+# on all three surfaces because the shared-toolset invariant admits no
+# per-surface subsetting. gptfdisk supplies `sgdisk` for the claim's partition
+# step and xfsprogs supplies `mkfs.xfs` for its content-format step
+# (docs/artifacts/lode-claim-pipeline.md §6.3 names the destructive set; Step 6
+# fixes the Lode MVP filesystem as xfs with content_format = lode-xfs). Their
+# absence was found on 2026-08-08 by a human running a real shell on a
+# controller and hitting `sgdisk: command not found` — no Go test could have
+# caught it, since nothing here evaluates Nix and no Go code execs sgdisk yet.
+# The two differ in ISO-visible effect: nixpkgs' profiles/base.nix (imported by
+# metallic-image/iso-common.nix) ALREADY ships gptfdisk on every ISO, so only an
+# installed node — whose service `path` comes from this file alone and inherits
+# no base profile — was actually missing it; xfsprogs is absent from that
+# profile and so is new to every surface. Note xfsprogs carries a large
+# transitive tail (systemd-minimal, glib, python3 + dbus-python, the X11 client
+# libs): +14 store paths / ~51.4 MiB uncompressed NAR over the previous list,
+# measured 2026-08-08 and recorded on phase-6 status 6b-2, which must re-measure
+# before it closes.
+#
+# The Go-side claim preflight naming these binaries lives in storage/claimtools;
+# its nix drift test reads THIS list, so a package deleted here turns that test
+# red rather than failing on real hardware mid-claim.
+#
 # NOTE: the Go list installToolBinaries in node/install/doctor.go is a
 # deliberately NARROWER mirror of this file — the installer-execed subset only.
 # It is intentionally NOT extended with cryptsetup/smartmontools by this slice:
@@ -40,4 +64,5 @@ pkgs: with pkgs; [
   util-linux coreutils gnugrep gnused gawk findutils diffutils ethtool
   e2fsprogs dosfstools parted systemd
   cryptsetup smartmontools
+  gptfdisk xfsprogs
 ]
