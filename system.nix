@@ -5,6 +5,11 @@
 
 let
   cfg = config.services.metallic-flock;
+
+  # The ssh-agent socket both metallic-flock and its transient reconcile unit
+  # authenticate git through. Under /run/metallic-flock so it shares the tmpfs
+  # RuntimeDirectory the deploy key already lives in (config.RunDir in Go).
+  sshAgentSocket = "/run/metallic-flock/ssh-agent.sock";
 in {
   options.services.metallic-flock = with lib; {
     enable = mkEnableOption "Compute Flock Service";
@@ -69,15 +74,60 @@ in {
       allowedUDPPorts = [ 8472 5353 ];
     };
 
+    # The ssh-agent that holds the node's git deploy key.
+    #
+    # It exists because git now runs IN-PROCESS (apps/metallic-flock/git) rather
+    # than by exec'ing the git binary, and go-git cannot see GIT_SSH_COMMAND — it
+    # never spawns ssh. Remote authentication therefore resolves through
+    # SSH_AUTH_SOCK, and the key lives in this agent instead of in the
+    # metallic-flock process, so it is not resident in that process's memory for
+    # the life of the node.
+    #
+    # A separate unit rather than an in-process keyring: an in-process one would
+    # put the key straight back into the address space this moves it out of.
+    #
+    # The socket path is FIXED rather than agent-chosen (-a). metallic-flock and
+    # the transient reconcile unit both need to name it, and a path systemd owns
+    # is one neither has to discover. RuntimeDirectory places it on tmpfs, so the
+    # key never touches persistent storage through this path.
+    systemd.services.metallic-flock-ssh-agent = {
+      description = "Compute Flock SSH agent (git deploy key)";
+      wantedBy = [ "multi-user.target" ];
+      before = [ "metallic-flock.service" ];
+
+      serviceConfig = {
+        Type = "forking";
+        # -D would keep it in the foreground and never fork; ssh-agent's own
+        # daemonisation is what Type=forking is waiting for.
+        ExecStart = "${pkgs.openssh}/bin/ssh-agent -a ${sshAgentSocket}";
+        ExecStopPost = "${pkgs.coreutils}/bin/rm -f ${sshAgentSocket}";
+        # The agent is a credential holder with no persistent state; if it dies
+        # the keys die with it and metallic-flock reloads them on its next
+        # credential install or restore.
+        Restart = "always";
+        RestartSec = 1;
+        RuntimeDirectory = "metallic-flock";
+        RuntimeDirectoryMode = "0700";
+        RuntimeDirectoryPreserve = true;
+      };
+    };
+
     systemd.services.metallic-flock = {
       description = "Compute Flock Agent";
       after = [ "network-online.target" ]
+        # The agent holds the deploy key that in-process git authenticates with;
+        # starting before it would make the first fetch of a freshly booted node
+        # fail on a socket that does not exist yet.
+        ++ [ "metallic-flock-ssh-agent.service" ]
         ++ lib.optional (cfg.mode == "controller") "postgresql.service"
         # Live installers ("agent iso" / "controller iso") run no k3s, so they
         # must not order after a k3s.service that will never start.
         ++ lib.optional (!(lib.hasSuffix " iso" cfg.mode)) "k3s.service";
       requires = lib.optional (cfg.mode == "controller") "postgresql.service";
-      wants = [ "network-online.target" ];
+      # wants, not requires: if the agent dies for good, metallic-flock should keep
+      # heartbeating and serving rather than be stopped with it. Git breaks, which
+      # is loud on its own; losing liveness too would be worse.
+      wants = [ "network-online.target" "metallic-flock-ssh-agent.service" ];
       wantedBy = [ "multi-user.target" ];
 
       # Never give up restarting the controller. With Restart=always but the default
@@ -99,6 +149,12 @@ in {
 
       environment = {
         NIX_PATH = "nixpkgs=${pkgs.path}";
+        # In-process git (apps/metallic-flock/git) authenticates to remotes
+        # through this agent; go-git never spawns ssh, so GIT_SSH_COMMAND is
+        # invisible to it. Threaded UNCONDITIONALLY: an agent node that loses
+        # this cannot fetch, and installDeployCredentials refuses to adopt
+        # rather than adopt a node that will never reconcile.
+        SSH_AUTH_SOCK = sshAgentSocket;
         # Threaded UNCONDITIONALLY (never under optionalAttrs): every installed
         # node must always carry its profile so the process resolves
         # source=env. Gating this would reintroduce source=default and break
