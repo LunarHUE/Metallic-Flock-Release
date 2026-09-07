@@ -160,16 +160,30 @@ in {
         # source=env. Gating this would reintroduce source=default and break
         # the metallic.local path. See config.resolveProfile.
         METALLIC_FLOCK_PROFILE = cfg.profile;
-        # Update channel, threaded UNCONDITIONALLY alongside PROFILE (same
-        # source=env invariant — the controller's updatecheck poller reads
-        # METALLIC_UPDATE_CHANNEL). The option lives in the flock.* drop-in
-        # library (modules/update.nix), which installed nodes always import; the
-        # `or "stable"` fallback keeps the two live ISOs building — they enable
-        # this service but do NOT import the flock modules, so flock.update.channel
-        # is absent there (host-verified: config.<undeclared>.x or default → default).
-        # On installed nodes the option is always declared, so the real channel
-        # always threads (source=env holds).
+        # Update channel + PR number, threaded UNCONDITIONALLY alongside PROFILE
+        # (same source=env invariant — the controller's updatecheck poller reads
+        # METALLIC_UPDATE_CHANNEL and METALLIC_UPDATE_PR). Both options live in
+        # the flock.* drop-in library (modules/update.nix), which installed nodes
+        # always import.
+        #
+        # The `or` fallbacks cover TWO distinct absences, not one:
+        #   (a) the two live ISOs enable this service but do NOT import the flock
+        #       modules, so flock.update.* is undeclared there (host-verified:
+        #       config.<undeclared>.x or default → default);
+        #   (b) a one-generation SKEW window — the binary and the cluster module
+        #       set land in different generations (the controller re-pushes
+        #       modules/ on boot), so a node can carry this system.nix while
+        #       modules/update.nix still predates flock.update.pullRequest.
+        # On a settled installed node both options are declared, so the real
+        # values always thread (source=env holds).
         METALLIC_UPDATE_CHANNEL = config.flock.update.channel or "stable";
+        # Empty-string-when-null DELIBERATELY, not the releaseRef optionalAttrs
+        # precedent below: the variable must always be PRESENT so source=env
+        # holds on installed nodes, and updatecheck.ParsePullRequest reads an
+        # empty value as "unset" (0 — no PR configured).
+        METALLIC_UPDATE_PR =
+          let pr = config.flock.update.pullRequest or null;
+          in if pr == null then "" else toString pr;
       } // lib.optionalAttrs (cfg.releaseRef != "") {
         METALLIC_RELEASE_REF = cfg.releaseRef;
       };
