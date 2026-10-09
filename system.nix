@@ -42,6 +42,21 @@ in {
       '';
     };
 
+    godebug = mkOption {
+      type = types.listOf types.str;
+      default = [ ];
+      example = [ "x509negativeserial=1" ];
+      description = ''
+        Extra GODEBUG settings (`name=value`) for the metallic-flock unit. A
+        list so several modules can contribute and the definitions MERGE —
+        systemd.services.<n>.environment.GODEBUG is a single string that two
+        modules cannot both define. system.nix joins this list with the
+        fips140 setting from flock.security.fips, which is always appended
+        LAST so it wins over any fips140 entry here (Go's GODEBUG parser lets
+        the later of two duplicate settings win).
+      '';
+    };
+
     profile = mkOption {
       type = types.enum [ "solo" "production" ];
       default = "production";
@@ -58,7 +73,16 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [ cfg.package ];
+    # OpenTofu rides with the binary on controllers only: `metallic-flock sso
+    # setup` (run as root on the controller, sso-quick-setup.md) shells out to
+    # `tofu` to apply the embedded IdP module. Gated on cfg.mode == "controller"
+    # (the runtime-mode axis, docs/architecture.md), the same gate as the
+    # dashboard ports below, NOT k3s role or profile. tofu binds nothing; it
+    # reaches the provider registry and the IdP API outbound over HTTPS.
+    # Provider plugins are fetched on first use (not pre-fetched: air-gapped
+    # controllers need a mirror, a follow-up).
+    environment.systemPackages = [ cfg.package ]
+      ++ lib.optional (cfg.mode == "controller") pkgs.opentofu;
 
     networking.firewall = {
       # Ports 80 (plaintext) and 443 (HTTPS, 3c-6) are the controller dashboard
@@ -184,6 +208,19 @@ in {
         METALLIC_UPDATE_PR =
           let pr = config.flock.update.pullRequest or null;
           in if pr == null then "" else toString pr;
+        # FIPS 140-3 mode (#429), threaded UNCONDITIONALLY and EXPLICITLY. The
+        # binary is built with GOFIPS140=v1.26.0, which bakes
+        # DefaultGODEBUG=fips140=on into it — so leaving GODEBUG unset would turn
+        # FIPS mode ON for every node, and an "off" here is load-bearing, not
+        # redundant. The value is read once at process start; an env change
+        # restarts this unit (see reloadTriggers below), never reloads it.
+        #
+        # `or "off"` covers the same two absences as METALLIC_UPDATE_CHANNEL:
+        # the live ISOs (no flock modules imported) and a one-generation skew
+        # where this system.nix lands before modules/security.nix. Both get the
+        # pre-#429 behaviour, which is the safe direction.
+        GODEBUG = lib.concatStringsSep "," (cfg.godebug
+          ++ [ "fips140=${config.flock.security.fips or "off"}" ]);
       } // lib.optionalAttrs (cfg.releaseRef != "") {
         METALLIC_RELEASE_REF = cfg.releaseRef;
       };
