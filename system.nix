@@ -36,9 +36,12 @@ in {
       type = types.str;
       default = "";
       description = ''
-        Git ref in lunarhue/metallic-flock-release to use during install.
-        When non-empty, the agent overrides the metallic-flock flake input
-        before nixos-install. Empty = use cluster repo's flake.lock as-is.
+        Git ref in lunarhue/metallic-flock-release this image was built for
+        (exported as METALLIC_RELEASE_REF). The agent install does NOT
+        override the cluster flake with it: the node always installs the
+        release the cluster repo's flake.lock pins, and the install log
+        compares the two (#478). Also the controller's dev `?rev=` seed
+        fallback and the doctor release-source signal.
       '';
     };
 
