@@ -58,7 +58,16 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [ cfg.package ];
+    # OpenTofu rides with the binary on controllers only: `metallic-flock sso
+    # setup` (run as root on the controller, sso-quick-setup.md) shells out to
+    # `tofu` to apply the embedded IdP module. Gated on cfg.mode == "controller"
+    # (the runtime-mode axis, docs/architecture.md), the same gate as the
+    # dashboard ports below, NOT k3s role or profile. tofu binds nothing; it
+    # reaches the provider registry and the IdP API outbound over HTTPS.
+    # Provider plugins are fetched on first use (not pre-fetched: air-gapped
+    # controllers need a mirror, a follow-up).
+    environment.systemPackages = [ cfg.package ]
+      ++ lib.optional (cfg.mode == "controller") pkgs.opentofu;
 
     networking.firewall = {
       # Ports 80 (plaintext) and 443 (HTTPS, 3c-6) are the controller dashboard
