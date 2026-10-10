@@ -1,25 +1,10 @@
 # We wrap the standard module signature to inject the flake's `self`
 { self }: 
 
-{ config, lib, pkgs, ... }@args:
+{ config, lib, pkgs, ... }:
 
 let
   cfg = config.services.metallic-flock;
-
-  # OpenTofu for the SSO quick setup (sso-quick-setup.md §OpenTofu version).
-  # The Okta and Keycloak setup modules need tofu >= 1.11 (ephemeral
-  # variables carry the admin credential); nixos-25.05 ships 1.9.1. When the
-  # node's pkgs is older, take the leaf package from the separately pinned
-  # unstable set the cluster flake passes as the `unstablePkgs` specialArg
-  # (read through `args` so a cluster repo that predates it still evaluates
-  # and keeps the stable tofu — the controller then reports Okta/Keycloak
-  # setup unavailable, tofu_too_old, instead of failing). A leaf binary only:
-  # nothing else is taken from unstable.
-  unstablePkgs = args.unstablePkgs or null;
-  tofuPackage =
-    if lib.versionAtLeast pkgs.opentofu.version "1.11" || unstablePkgs == null
-    then pkgs.opentofu
-    else unstablePkgs.opentofu;
 
   # The ssh-agent socket both metallic-flock and its transient reconcile unit
   # authenticate git through. Under /run/metallic-flock so it shares the tmpfs
@@ -100,7 +85,7 @@ in {
     # Provider plugins are fetched on first use (not pre-fetched: air-gapped
     # controllers need a mirror, a follow-up).
     environment.systemPackages = [ cfg.package ]
-      ++ lib.optional (cfg.mode == "controller") tofuPackage;
+      ++ lib.optional (cfg.mode == "controller") pkgs.opentofu;
 
     networking.firewall = {
       # Ports 80 (plaintext) and 443 (HTTPS, 3c-6) are the controller dashboard
@@ -187,10 +172,7 @@ in {
       # them, so they stay out of install-tools.nix (and off the controller ISO).
       path = (import ./nix/install-tools.nix pkgs) ++ (with pkgs; [
         procps iptables k3s openssh nixos-option nixos-rebuild dmidecode
-      ])
-        # The controller's setup API (ssosetup) execs tofu itself; the unit's
-        # PATH is not the system profile's. Same mode gate as above.
-        ++ lib.optional (cfg.mode == "controller") tofuPackage;
+      ]);
 
       environment = {
         NIX_PATH = "nixpkgs=${pkgs.path}";
