@@ -193,7 +193,14 @@ in {
         ++ lib.optional (cfg.mode == "controller") tofuPackage;
 
       environment = {
-        NIX_PATH = "nixpkgs=${pkgs.path}";
+        # NOT "${pkgs.path}": pkgs.path is a PATH value, and interpolating it
+        # re-imports the whole nixpkgs tree as a SECOND store path
+        # (<hash>-<orig-hash>-source: 425 MiB, ~81k files) — measured on a
+        # v0.0.1637 agent closure, where that duplicate was the single largest
+        # file count an install copies into /mnt. nixpkgs.flake.source is the
+        # flake's own source (a string with context, already in the closure via
+        # the nix registry); toString on the non-flake fallback never copies.
+        NIX_PATH = "nixpkgs=${toString (if config.nixpkgs.flake.source != null then config.nixpkgs.flake.source else pkgs.path)}";
         # In-process git (apps/metallic-flock/git) authenticates to remotes
         # through this agent; go-git never spawns ssh, so GIT_SSH_COMMAND is
         # invisible to it. Threaded UNCONDITIONALLY: an agent node that loses
