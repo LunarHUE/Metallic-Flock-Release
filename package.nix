@@ -1,11 +1,11 @@
 { stdenv, fetchurl, lib }:
 stdenv.mkDerivation {
   pname = "metallic-flock";
-  version = "0.0.1899";
+  version = "0.0.1882-branch.slice-d2-generation-truth.38277806479";
 
   src = fetchurl {
-    url = "https://github.com/lunarhue/metallic-flock-release/releases/download/v0.0.1899/metallic-flock-linux-amd64";
-    hash = "sha256-ilDUvx3jPTPmeFt5bWIMUrWa7yibOAWo7q4lp9omoLE=";
+    url = "https://github.com/lunarhue/metallic-flock-release/releases/download/branch-slice-d2-generation-truth-38277806479/metallic-flock-linux-amd64";
+    hash = "sha256-v+vNs6v1T4sLEQq2XNHvz0ci2p0uoAhmXjembfSLe58=";
   };
 
   dontUnpack = true;
