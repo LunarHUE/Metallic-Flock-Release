@@ -54,6 +54,11 @@
 # install over tools the installer never calls today. Extending it is 6k's job,
 # when the install-time claim entry path lands.
 #
+# lvm2 (Alloy spike, 2026-11-11): an alloy-lvm claim ends in pvcreate +
+# vgcreate mf-<disk_uuid> on the opened mapper, and the agent's boot unlock
+# runs vgchange -ay after cryptsetup open. Same shared-toolset reasoning as
+# cryptsetup above. storage/claimtools lists pvcreate/vgcreate against it.
+#
 # Runtime-only tools the installer never execs (procps iptables k3s openssh
 # nixos-option nixos-rebuild) are NOT here — they are appended in system.nix so
 # they stay off the controller live ISO.
@@ -65,4 +70,5 @@ pkgs: with pkgs; [
   e2fsprogs dosfstools parted systemd
   cryptsetup smartmontools
   gptfdisk xfsprogs
+  lvm2
 ]
