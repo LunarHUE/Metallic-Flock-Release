@@ -21,7 +21,9 @@
   outputs = { self, nixpkgs }:
     let
       system = "x86_64-linux";
-      pkgs = import nixpkgs { inherit system; };
+      # config and overlays explicit: an impure evaluation (the installer's
+      # release check) must not read ~/.config/nixpkgs.
+      pkgs = import nixpkgs { inherit system; config = { }; overlays = [ ]; };
     in
     {
       packages.${system} = {
