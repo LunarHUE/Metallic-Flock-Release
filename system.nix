@@ -251,6 +251,29 @@ in {
           ++ [ "fips140=${config.flock.security.fips or "off"}" ]);
       } // lib.optionalAttrs (cfg.releaseRef != "") {
         METALLIC_RELEASE_REF = cfg.releaseRef;
+      }
+      # Controller runtime settings (modules/controller.nix, modules/update.nix).
+      # Threaded ONLY when the operator set them, unlike PROFILE/UPDATE_CHANNEL
+      # above, for two reasons: (1) a node that sets none keeps a byte-identical
+      # unit, so the upgrade that ships these options reloads (fd handoff)
+      # instead of restarting; (2) the libs-go loader treats an env var as an
+      # override, so an always-present empty METALLIC_FLOCK_AUTH_EXTERNAL_URL
+      # would mask a hand-written config.yaml value, the only way to set it
+      # before this option existed. The process's own defaults
+      # (config/default.config.yaml) are today's behaviour. The `or` fallbacks
+      # cover the same ISO and one-generation-skew absences as
+      # METALLIC_UPDATE_CHANNEL.
+      // lib.optionalAttrs ((config.flock.controller.advertiseAddress or null) != null) {
+        METALLIC_FLOCK_ADVERTISE_ADDRESS = config.flock.controller.advertiseAddress;
+      }
+      // lib.optionalAttrs ((config.flock.controller.externalURL or null) != null) {
+        METALLIC_FLOCK_AUTH_EXTERNAL_URL = config.flock.controller.externalURL;
+      }
+      // lib.optionalAttrs (!(config.flock.update.check or true)) {
+        METALLIC_FLOCK_UPDATE_CHECK_ENABLED = "false";
+      }
+      // lib.optionalAttrs ((config.flock.update.checkInterval or null) != null) {
+        METALLIC_FLOCK_UPDATE_CHECK_INTERVAL = config.flock.update.checkInterval or null;
       };
 
       serviceConfig = {
