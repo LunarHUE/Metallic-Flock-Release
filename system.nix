@@ -111,7 +111,9 @@ in {
       # --disable=traefik --disable=servicelb (see modules/k3s.nix +
       # nix/k3s_airgap_test.go), so nothing else claims :80/:443 via the silent
       # servicelb hostPort/PREROUTING DNAT — the controller binds them directly.
-      allowedTCPPorts = [ 6443 10250 9000 22 ]
+      # No 6443 here (#1238): the k3s apiserver port opens in modules/k3s.nix on
+      # role=server nodes only. This unit also runs on k3s-less ISO installers.
+      allowedTCPPorts = [ 10250 9000 22 ]
         ++ lib.optionals (cfg.mode == "controller") [ 80 443 ];
       allowedUDPPorts = [ 8472 5353 ];
     };
@@ -151,6 +153,41 @@ in {
         RuntimeDirectory = "metallic-flock";
         RuntimeDirectoryMode = "0700";
         RuntimeDirectoryPreserve = true;
+
+        # #1706. The agent only creates one AF_UNIX path socket in its
+        # RuntimeDirectory and answers on it. It stays root with no DynamicUser and no
+        # PrivateUsers: ssh-agent accepts only peers with its own UID or root, and both
+        # clients (metallic-flock, the transient reconcile unit) are root.
+        # ProtectSystem=strict leaves the RuntimeDirectory writable, so -a and the
+        # ExecStopPost rm still work. A path socket is not netns-scoped, so
+        # PrivateNetwork does not hide it. No ~@resources: ssh-agent sets
+        # RLIMIT_CORE=0 at start and exits if setrlimit fails.
+        NoNewPrivileges = true;
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        PrivateTmp = true;
+        PrivateDevices = true;
+        PrivateNetwork = true;
+        IPAddressDeny = "any";
+        CapabilityBoundingSet = "";
+        AmbientCapabilities = "";
+        RestrictAddressFamilies = [ "AF_UNIX" ];
+        RestrictNamespaces = true;
+        RestrictRealtime = true;
+        RestrictSUIDSGID = true;
+        ProtectKernelTunables = true;
+        ProtectKernelModules = true;
+        ProtectKernelLogs = true;
+        ProtectControlGroups = true;
+        ProtectClock = true;
+        ProtectHostname = true;
+        ProtectProc = "invisible";
+        ProcSubset = "pid";
+        LockPersonality = true;
+        MemoryDenyWriteExecute = true;
+        SystemCallArchitectures = "native";
+        SystemCallFilter = [ "@system-service" ];
+        UMask = "0077";
       };
     };
 
