@@ -1,11 +1,11 @@
 { stdenv, fetchurl, lib }:
 stdenv.mkDerivation {
   pname = "metallic-flock";
-  version = "0.0.2513";
+  version = "0.0.2539-branch.slice-nixos-2611-a2.44251223928";
 
   src = fetchurl {
-    url = "https://github.com/lunarhue/metallic-flock-release/releases/download/v0.0.2513/metallic-flock-linux-amd64";
-    hash = "sha256-P5Pwm8ni2EFGJjiCymMRJwz4KuB0rqNK6eEUCI0532g=";
+    url = "https://github.com/lunarhue/metallic-flock-release/releases/download/branch-slice-nixos-2611-a2-44251223928/metallic-flock-linux-amd64";
+    hash = "sha256-TDc/qnRmD+68B0daooyroh5vRVGQoHMQ3yGGpvZzxyg=";
   };
 
   dontUnpack = true;
