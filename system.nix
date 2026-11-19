@@ -25,17 +25,6 @@ let
   # authenticate git through. Under /run/metallic-flock so it shares the tmpfs
   # RuntimeDirectory the deploy key already lives in (config.RunDir in Go).
   sshAgentSocket = "/run/metallic-flock/ssh-agent.sock";
-
-  # Since NixOS 25.11 postgresql.service being active does not mean the roles and
-  # databases exist; postgresql.target groups the follow-up units. 25.05 has no
-  # such target. This module ships from the release flake and meets clusters on
-  # either channel until every cluster has moved, so pick per channel (#1719).
-  pgUnit = if config.systemd.targets ? postgresql then "postgresql.target" else "postgresql.service";
-
-  # The k3s package the node's template chose (modules/k3s.nix, read from
-  # cluster/platform.json). Live installers have no template modules and get
-  # pkgs.k3s. The Go agent finds k3s and its host tools on this PATH.
-  k3sPackage = lib.attrByPath [ "flock" "k3s" "package" ] pkgs.k3s config;
 in {
   options.services.metallic-flock = with lib; {
     enable = mkEnableOption "Compute Flock Service";
@@ -43,7 +32,7 @@ in {
     package = mkOption {
       type = types.package;
       # Grab the package we built in package.nix dynamically based on the target system
-      default = self.packages.${pkgs.stdenv.hostPlatform.system}.metallic-flock;
+      default = self.packages.${pkgs.system}.metallic-flock;
       description = "The Compute Flock package to use.";
     };
 
@@ -209,11 +198,11 @@ in {
         # starting before it would make the first fetch of a freshly booted node
         # fail on a socket that does not exist yet.
         ++ [ "metallic-flock-ssh-agent.service" ]
-        ++ lib.optional (cfg.mode == "controller") pgUnit
+        ++ lib.optional (cfg.mode == "controller") "postgresql.service"
         # Live installers ("agent iso" / "controller iso") run no k3s, so they
         # must not order after a k3s.service that will never start.
         ++ lib.optional (!(lib.hasSuffix " iso" cfg.mode)) "k3s.service";
-      requires = lib.optional (cfg.mode == "controller") pgUnit;
+      requires = lib.optional (cfg.mode == "controller") "postgresql.service";
       # wants, not requires: if the agent dies for good, metallic-flock should keep
       # heartbeating and serving rather than be stopped with it. Git breaks, which
       # is loud on its own; losing liveness too would be worse.
@@ -234,7 +223,7 @@ in {
       # Runtime-only tools below are appended here — the installer never execs
       # them, so they stay out of install-tools.nix (and off the controller ISO).
       path = (import ./nix/install-tools.nix pkgs) ++ (with pkgs; [
-        procps iptables k3sPackage openssh nixos-option nixos-rebuild dmidecode
+        procps iptables k3s openssh nixos-option nixos-rebuild dmidecode
       ])
         # The controller's setup API (ssosetup) execs tofu itself; the unit's
         # PATH is not the system profile's. Same mode gate as above.
