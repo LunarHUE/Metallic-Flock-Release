@@ -1,22 +1,25 @@
-{ stdenv, fetchurl, lib }:
-stdenv.mkDerivation {
+# The metallic-flock release package, with no nixpkgs: Nix's built-in fetcher
+# downloads the release NAR and unpacks it. The NAR holds bin/metallic-flock and
+# the bin/metallic symlink (release.yml packs it), so the output keeps the bin/
+# layout system.nix and `nix run` expect. builtin:fetchurl unpacks only in
+# recursive hash mode, so the hash is the NAR hash of that tree, not the sha256
+# of the raw binary asset.
+let
+  version = "0.0.2717-pr.2048.2809";
+  url = "https://github.com/lunarhue/metallic-flock-release/releases/download/v0.0.2717-pr.2048.2809/metallic-flock-linux-amd64.nar";
+in
+derivation {
+  name = "metallic-flock-${version}";
   pname = "metallic-flock";
-  version = "0.0.2716";
-
-  src = fetchurl {
-    url = "https://github.com/lunarhue/metallic-flock-release/releases/download/v0.0.2716/metallic-flock-linux-amd64";
-    hash = "sha256-SxkYqx7Hy+8yaBvm08EbU0tMQ+vfuM8JKFblk/GNf9U=";
-  };
-
-  dontUnpack = true;
-
-  installPhase = ''
-    install -Dm755 $src $out/bin/metallic-flock
-    ln -s $out/bin/metallic-flock $out/bin/metallic
-  '';
-
-  meta = with lib; {
-    description = "Compute Flock Agent";
-    platforms = [ "x86_64-linux" ];
-  };
+  inherit version url;
+  urls = [ url ];
+  system = "builtin";
+  builder = "builtin:fetchurl";
+  unpack = true;
+  executable = false;
+  outputHashMode = "recursive";
+  outputHashAlgo = "sha256";
+  outputHash = "sha256-i6TiZ0O6PRXybbuIy1mTALuavDzrNy5LY80vGfeWD6M=";
+  preferLocalBuild = true;
+  impureEnvVars = [ "http_proxy" "https_proxy" "ftp_proxy" "all_proxy" "no_proxy" ];
 }

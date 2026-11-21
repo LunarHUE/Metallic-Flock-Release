@@ -10,24 +10,22 @@
 
   description = "Metallic Flock - Public Release";
 
-  # x86_64-linux ONLY by design — the install target is x86_64-linux. nixpkgs is the
-  # sole input (one fewer public dependency on the install boundary), and the release
-  # package is built with THIS flake's own locked nixpkgs (Layer-3 identity — see the
-  # cluster template comment on why metallic-flock must not follow the consumer's nixpkgs).
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  };
+  # x86_64-linux ONLY by design: the install target is x86_64-linux. No inputs at
+  # all: the release package is a fixed-output builtin:fetchurl of the release
+  # NAR (package.nix), so its store path depends only on its name and NAR hash
+  # and is identical at ISO prebuild, at install and on every cluster channel.
+  # The flake.lock beside this file is the root-only lock release.yml writes.
+  inputs = { };
 
-  outputs = { self, nixpkgs }:
+  # `...`: a cluster lock written against an older release still passes that
+  # release's `nixpkgs` input until the next relock drops it.
+  outputs = { self, ... }:
     let
       system = "x86_64-linux";
-      # config and overlays explicit: an impure evaluation (the installer's
-      # release check) must not read ~/.config/nixpkgs.
-      pkgs = import nixpkgs { inherit system; config = { }; overlays = [ ]; };
     in
     {
       packages.${system} = {
-        metallic-flock = pkgs.callPackage ./package.nix { };
+        metallic-flock = import ./package.nix;
         default = self.packages.${system}.metallic-flock;
       };
       nixosModules = {
