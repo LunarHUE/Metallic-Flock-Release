@@ -328,27 +328,6 @@ in {
       }
       // lib.optionalAttrs ((config.flock.update.checkInterval or null) != null) {
         METALLIC_FLOCK_UPDATE_CHECK_INTERVAL = config.flock.update.checkInterval or null;
-      }
-      # Offline mode and dev-fleet telemetry (modules/telemetry.nix, #2141).
-      # Threaded only when set, like the controller settings above, so a node
-      # that sets none keeps a byte-identical unit; unset means the channel
-      # default (telemetry.Resolve reads METALLIC_UPDATE_CHANNEL). The `or`
-      # fallbacks cover the ISO and one-generation-skew absences.
-      // lib.optionalAttrs (config.flock.offlineMode or false) {
-        # config.Config.OfflineMode (offline_mode), shared with OTEL (#2050).
-        METALLIC_FLOCK_OFFLINE_MODE = "true";
-      }
-      // lib.optionalAttrs ((config.flock.telemetry.enable or null) != null) {
-        FLOCK_TELEMETRY = if config.flock.telemetry.enable then "on" else "off";
-      }
-      // lib.optionalAttrs ((config.flock.telemetry.allLogs or null) != null) {
-        FLOCK_TELEMETRY_ALL_LOGS = config.flock.telemetry.allLogs;
-      }
-      // lib.optionalAttrs ((config.flock.telemetry.endpoint or "") != "") {
-        FLOCK_TELEMETRY_ENDPOINT = config.flock.telemetry.endpoint;
-      }
-      // lib.optionalAttrs ((config.flock.telemetry.tokenFile or null) != null) {
-        FLOCK_TELEMETRY_TOKEN_FILE = config.flock.telemetry.tokenFile;
       };
 
       serviceConfig = {
