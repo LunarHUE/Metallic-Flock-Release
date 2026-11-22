@@ -439,30 +439,6 @@ in {
         Type = "notify";
         NotifyAccess = "all";
 
-        # #1377: how long systemd waits for READY=1 before it kills the start
-        # and (Restart=always, startLimitIntervalSec=0) tries again from zero.
-        # The 90s default is shorter than the boot steps the Go side budgets
-        # before READY. On a controller: db-connect pings up to 60 times 2s
-        # apart (db.Connect, connectAttempts/connectDelay), about 2 min when
-        # each ping fails fast, as it does on the local unix socket (a ping has
-        # no timeout of its own, so a blackholed TCP db host can take longer);
-        # then
-        # db.Migrate runs under migrationTimeout, 10 min, which already holds
-        # the 5 min stale-lock wait; then git-init, repo-access-guard,
-        # hardware-config, the nixos snapshot and finalize steps, CA init and
-        # the listeners, which take seconds. 10 + 2 + the rest is about 13 min,
-        # so 20 min leaves headroom. The agent's pre-READY steps are shorter
-        # and share the value. It stays finite so a start that truly hangs is
-        # still killed and retried. Two costs: a hung start now holds a
-        # switch's restart job for up to 20 min instead of 90s, and 20 min must
-        # stay under selfapply's applyingDeadline (30 min) and reconcile's
-        # nodeReconcileTimeout (45 min). db/unit_timeout_test.go fails if the
-        # Go budgets outgrow this line. Adding it changes the unit, so the
-        # first switch to a release with it restarts metallic-flock once
-        # instead of reloading it. Inside the ISO gate: the ISO unit is not
-        # Type=notify and keeps the default.
-        TimeoutStartSec = "20min";
-
         # SIGHUP to the main pid triggers the in-process listener handoff.
         #
         # coreutils, NOT "${cfg.package}/bin/...", and this is load-bearing: any
