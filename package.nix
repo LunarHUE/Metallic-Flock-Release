@@ -5,8 +5,8 @@
 # recursive hash mode, so the hash is the NAR hash of that tree, not the sha256
 # of the raw binary asset.
 let
-  version = "0.0.2763";
-  url = "https://github.com/lunarhue/metallic-flock-release/releases/download/v0.0.2763/metallic-flock-linux-amd64.nar";
+  version = "0.0.2765";
+  url = "https://github.com/lunarhue/metallic-flock-release/releases/download/v0.0.2765/metallic-flock-linux-amd64.nar";
 in
 derivation {
   name = "metallic-flock-${version}";
@@ -19,7 +19,7 @@ derivation {
   executable = false;
   outputHashMode = "recursive";
   outputHashAlgo = "sha256";
-  outputHash = "sha256-kTTfTXJjw+VhqScVMCdO5+tN9bkoVFwj1RN1AfoSrQk=";
+  outputHash = "sha256-tl8QUdBoa6UC/+qQIJFpIt2G2wvkK9gmMIWtwqCe8hY=";
   preferLocalBuild = true;
   impureEnvVars = [ "http_proxy" "https_proxy" "ftp_proxy" "all_proxy" "no_proxy" ];
 }
