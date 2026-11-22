@@ -199,12 +199,6 @@ in {
         SystemCallArchitectures = "native";
         SystemCallFilter = [ "@system-service" ];
         UMask = "0077";
-
-        # #1319: the deploy key lives only in this process, so losing it to the
-        # OOM killer breaks git until the next credential install. A few MiB.
-        MemoryMin = "16M";
-        OOMScoreAdjust = -900;
-        ManagedOOMPreference = "omit";
       };
     };
 
@@ -378,22 +372,6 @@ in {
         TimeoutStopSec = "45s";
         StateDirectory = "metallic-flock";
         CacheDirectory = "metallic-flock";
-
-        # #1319: the heartbeat beats from this process every 5 s; under thrash
-        # it stalls with everything else and the node goes dark without anything
-        # having been killed. memory.min keeps its working set resident (about
-        # 512M on a controller, less on an agent) and omit keeps systemd-oomd
-        # (memory.nix in the template) from choosing its cgroup. The template's
-        # system.slice carries the matching parent protection. No OOMScoreAdjust
-        # yet: every child inherits it (shell scopes exec in place through
-        # systemd-run --scope, and the nix flake/eval children), so a runaway
-        # controller shell command would outlive every other process. It comes
-        # with the Go side resetting the score in children (#1319 item 6).
-        # Adding these lines changes the unit, so the first switch to a release
-        # with them restarts metallic-flock once instead of reloading it.
-        MemoryMin = if cfg.mode == "controller" then "512M" else "256M";
-        MemoryLow = if cfg.mode == "controller" then "1G" else "512M";
-        ManagedOOMPreference = "omit";
 
       }
       # Type=notify is what lets the fd handoff survive. Under the default
