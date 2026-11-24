@@ -323,6 +323,15 @@ in {
       // lib.optionalAttrs ((config.flock.controller.externalURL or null) != null) {
         METALLIC_FLOCK_AUTH_EXTERNAL_URL = config.flock.controller.externalURL;
       }
+      // lib.optionalAttrs ((config.flock.controller.graphqlStream.maxStreams or null) != null) {
+        METALLIC_FLOCK_GRAPHQL_STREAM_MAX_STREAMS = toString config.flock.controller.graphqlStream.maxStreams;
+      }
+      // lib.optionalAttrs ((config.flock.controller.graphqlStream.maxReservations or null) != null) {
+        METALLIC_FLOCK_GRAPHQL_STREAM_MAX_RESERVATIONS = toString config.flock.controller.graphqlStream.maxReservations;
+      }
+      // lib.optionalAttrs ((config.flock.controller.graphqlStream.maxOperations or null) != null) {
+        METALLIC_FLOCK_GRAPHQL_STREAM_MAX_OPERATIONS = toString config.flock.controller.graphqlStream.maxOperations;
+      }
       // lib.optionalAttrs (!(config.flock.update.check or true)) {
         METALLIC_FLOCK_UPDATE_CHECK_ENABLED = "false";
       }
