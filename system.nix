@@ -1,7 +1,7 @@
 # We wrap the standard module signature to inject the flake's `self`
 { self }: 
 
-{ config, lib, pkgs, ... }@args:
+{ config, lib, options, pkgs, ... }@args:
 
 let
   cfg = config.services.metallic-flock;
@@ -101,7 +101,12 @@ in {
     };
   };
 
-  config = lib.mkIf cfg.enable {
+  # netguard of this release, for the lab network module. Live installers have
+  # no template modules, and a cluster repo may be older than the option. The
+  # option's value is read only with flock.vms.networks.enable on.
+  config = lib.mkIf cfg.enable (lib.optionalAttrs (lib.hasAttrByPath [ "flock" "vms" "networks" "netguardPackage" ] options) {
+    flock.vms.networks.netguardPackage = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.netguard;
+  } // {
     # OpenTofu rides with the binary on controllers only: `metallic-flock sso
     # setup` (run as root on the controller, sso-quick-setup.md) shells out to
     # `tofu` to apply the embedded IdP module. Gated on cfg.mode == "controller"
@@ -557,5 +562,5 @@ in {
         exit $rc
       '';
     };
-  };
+  });
 }
